@@ -601,21 +601,93 @@ var posts = [
   }
 ];
 
+var pendingAuthorizations = [
+  {
+    "postId": 2,
+    "token": "Lt0i5jboVpzBsRdn8ly2"
+  }, {
+    "postId": 3,
+    "token": "MwOMIccVrQlXkylwXhvS"
+  }, {
+    "postId": 5,
+    "token": "v9AHmZUOwXLDCCTdCJef"
+  }, {
+    "postId": 8,
+    "token": "ygoLkHcWZgusUuLMt9C"
+  }, {
+    "postId": 13,
+    "token": "H0hCCjdvxKhWOW6AM0LU"
+  }, {
+    "postId": 21,
+    "token": "MAlHuElrK2eyBfHMKOmZ"
+  }, {
+    "postId": 34,
+    "token": "stwFxxX0wLQBN514ycsT"
+  }, {
+    "postId": 55,
+    "token": "R4p8NKZhCTZKLoIYZeum"
+  }
+];
+
+///////////////////////////////////////////////////////////////////////////////
+// helper functions
+
+function getPostById(postId){
+  return _.find(posts, (el) => { return el.id == postId; });
+}
+
+function getPostPendingAuthorizationByPostId(postId){
+  return _.find(pendingAuthorizations, (el) => { return el.postId == postId; });
+}
+
+function getPostPendingAuthorizationByToken(token){
+  return _.find(pendingAuthorizations, (el) => { return el.token == token; });
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// angular settings
+
+function log(response, method, url){
+  console.log(method, url, '->', response);
+  return response;
+}
+
 demoApp.config(["$provide", function ($provide) {
   $provide.decorator('$httpBackend', angular.mock.e2e.$httpBackendDecorator);
 }]);
 
-demoApp.run(function ($httpBackend, baseURL) {
-  // do not bother server, respond with given content
-  $httpBackend.whenGET(baseURL + '/posts?_end=9&_start=0').respond(200, posts.splice(0,9), {header: 'one'});
-
-  $httpBackend.whenGET(baseURL + '/posts/1')
-    .respond(function(method, url, data, headers, params){
-      return [200, posts[0], {header: 'one'}];
+demoApp.run(["$httpBackend", "baseURL", function($httpBackend, baseURL) {
+  $httpBackend.whenGET(baseURL + '/posts?_end=9&_start=0')
+    .respond(function(method, url, data, headers, params) {
+      return log([200, posts.slice(0).splice(params._start, params._end), {}], method, url);
     });
 
-  $httpBackend.whenGET(baseURL + '/posts/2')
+  var postRE = new RegExp(baseURL + "/posts/(.+)");
+  $httpBackend.whenGET(postRE, undefined, ['postId'])
     .respond(function(method, url, data, headers, params){
-      return [207, "my-token", {header: 'one'}];
+      var postId = params.postId;
+      var auth = getPostPendingAuthorizationByPostId(postId);
+      if (auth) { // post pending authorization
+        return log([207, auth.token, {"X-AUTH-NEEDED": auth.token}], method, url);
+      } else { // good to go
+        var post = getPostById(postId);
+        if (post) { // post found
+          return log([200, post, {}], method, url);
+        } else { // post not found
+          return log([404, null, {}], method, url);
+        }
+      }
     });
-});
+
+  var tokenRE = new RegExp(baseURL + "/auth\/(.+)");
+  $httpBackend.whenGET(tokenRE, undefined, ['token'])
+    .respond(function(method, url, data, headers, params){
+      var token = params.token;
+      var found = getPostPendingAuthorizationByToken(token);
+      if (found) {
+        return log([200, getPostById(found.postId), {}], method, url);
+      } else {
+        return log([404, null, {}], method, url);
+      }
+    });
+}]);

@@ -35,12 +35,22 @@ demoApp.service("Async", ["$q", "$timeout", function($q, $timeout){
   };
 }]);
 
-demoApp.service("Authorization", ["$q", "$timeout", function($q, $timeout){
-  this.authorize = function authorize(){
+demoApp.service("AuthModel", ["$http", "Async", "baseURL", function($http, Async, baseURL){
+  this.get = function(token){
+    return Async.delay($http.get(baseURL + "/auth/" + token), 1000);
+  };
+}]);
+
+demoApp.service("Authorization", ["$q", "$timeout", "AuthModel", function($q, $timeout, AuthModel){
+  this.authorize = function authorize(token){
     var deferred = $q.defer();
 
     $timeout(function() {
-      deferred.resolve();
+      AuthModel.get(token).then(function(response){
+        deferred.resolve(response);
+      }, function(response){
+        debugger;
+      });
     }, 1500);
 
     return deferred.promise;
@@ -64,12 +74,14 @@ demoApp.service("PostModel", ["$q", "Restangular", "Status", "Async", "Authoriza
     var itemPromise = Restangular.allUrl("base", baseURL).one('posts', id).get();
     var deferred = $q.defer();
 
-    itemPromise.then(function(response){
-      if (Status.isSuccessful(response.status)){ // successful case - no additional authorization
-        deferred.resolve(response.data);
-      } else if (Status.needsAuthorization(response.status)) {
-        Authorization.authorize().then(function(){
-          deferred.resolve(response.data);
+    itemPromise.then(function(itemResponse){
+      if (Status.isSuccessful(itemResponse.status)){ // successful case - no additional authorization
+        deferred.resolve(itemResponse.data);
+      } else if (Status.needsAuthorization(itemResponse.status)) {
+        // I expect "X-AUTH-NEEDED" to be here
+        var token = itemResponse.headers("X-AUTH-NEEDED");
+        Authorization.authorize(token).then(function(authorizationResponse){
+          deferred.resolve(authorizationResponse.data);
         });
       } else {
         alert("Unhandled status: " + response.status);

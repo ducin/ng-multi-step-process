@@ -54,11 +54,10 @@
 
 <div class="container" ng-controller="callCtrl">
     <p>
-        <a class="btn btn-default" href="#" role="button" ng-click="clear()">Clear &raquo;</a>
-        <a class="btn btn-default" href="#" role="button" ng-click="call(1)">Call standard &raquo;</a>
-        <a class="btn btn-default" href="#" role="button" ng-click="call(2)">Call alternative &raquo;</a>
+        <a class="btn btn-default" href="#" role="button" ng-click="clear()">Clear</a>
+        <a class="btn btn-default" href="#" role="button" ng-click="call(i)" data-ng-repeat="i in [1,2,3,4,5,6,7,8,9,10]">{{i}} &raquo;</a>
     </p>
-    <p cg-busy="itemPromise">
+    <p cg-busy="itemPromise" class="ng-cloak">
         <pre>{{display}}</pre>
     </p>
 </div>
