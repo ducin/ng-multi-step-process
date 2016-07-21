@@ -40,42 +40,42 @@ demoApp.service("Authorization", ["$q", "$timeout", "AuthModel", "Status", funct
   var self = this;
 
   this.authorize = function authorize(token){
-    var deferred = $q.defer();
+    var timeoutDfd = $q.defer();
 
     $timeout(function() {
       AuthModel.get(token).then(function(response){
-        deferred.resolve(response);
+        timeoutDfd.resolve(response);
       }, function(response){
-        deferred.reject(reason);
+        timeoutDfd.reject(reason);
       });
     }, 1500);
 
-    return deferred.promise;
+    return timeoutDfd.promise;
   };
 
   this.wrap = function(innerFunction){
     return function(){
       var args = Array.prototype.slice.call(arguments);
       var modelPromise = innerFunction.apply(this, args);
-      var deferred = $q.defer();
+      var wrappingDfd = $q.defer();
 
       modelPromise.then(function(modelResponse){
-        if (Status.isSuccessful(modelResponse.status)){ // successful case - no additional authorization
-          deferred.resolve(modelResponse.data);
-        } else if (Status.needsAuthorization(modelResponse.status)) {
+        if (Status.isSuccessful(modelResponse.status)){ // no authorization
+          wrappingDfd.resolve(modelResponse.data);
+        } else if (Status.needsAuthorization(modelResponse.status)) { // authorization needed
           // I expect "X-AUTH-NEEDED" to be here
           var token = modelResponse.headers("X-AUTH-NEEDED");
           self.authorize(token).then(function(authorizationResponse){
-            deferred.resolve(authorizationResponse.data);
+            wrappingDfd.resolve(authorizationResponse.data);
           });
-        } else {
+        } else { // unhandled status
           alert("Unhandled status: " + response.status);
         }
-      }, function(reason){
-        deferred.reject(reason);
+      }, function(reason){ // initial promise failed
+        wrappingDfd.reject(reason);
       });
 
-      return deferred.promise;
+      return wrappingDfd.promise;
     };
   };
 }]);
