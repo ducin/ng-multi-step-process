@@ -657,11 +657,13 @@ demoApp.config(["$provide", function ($provide) {
 }]);
 
 demoApp.run(["$httpBackend", "baseURL", function($httpBackend, baseURL) {
+  // POST COLLECTION
   $httpBackend.whenGET(baseURL + '/posts?_end=9&_start=0')
     .respond(function(method, url, data, headers, params) {
       return log([200, posts.slice(0).splice(params._start, params._end), {}], method, url);
     });
 
+  // POST ITEM
   var postRE = new RegExp(baseURL + "/posts/(.+)");
   $httpBackend.whenGET(postRE, undefined, ['postId'])
     .respond(function(method, url, data, headers, params){
@@ -679,6 +681,7 @@ demoApp.run(["$httpBackend", "baseURL", function($httpBackend, baseURL) {
       }
     });
 
+  // TOKEN ITEM
   var tokenRE = new RegExp(baseURL + "/auth\/(.+)");
   $httpBackend.whenGET(tokenRE, undefined, ['token'])
     .respond(function(method, url, data, headers, params){
