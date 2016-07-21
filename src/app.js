@@ -4,30 +4,30 @@ var demoApp = angular.module("demoApp", [
   "cgBusy"
 ]);
 
-demoApp.constant("baseURL", "https://jsonplaceholder.typicode.com");
-
 demoApp.config(["RestangularProvider", function(RestangularProvider){
   RestangularProvider.setFullResponse(true);
 }]);
 
+demoApp.constant("baseURL", "https://jsonplaceholder.typicode.com");
+
 demoApp.service("Status", function(){
-  this.isSuccessful = function(status){
+  this.isSuccessful = function isSuccessful(status){
     return status === 200 || status === 204;
   };
 
-  this.needsAuthorization = function(status){
+  this.needsAuthorization = function needsAuthorization(status){
     return status === 207;
   };
 });
 
 demoApp.service("Async", ["$q", "$timeout", function($q, $timeout){
-  this.delay = function(originalPromise, time){
+  this.delay = function delay(originalPromise, time){
     var deferred = $q.defer();
 
-    $timeout(function() {
-      originalPromise.then(function(response){
-        deferred.resolve(response.data);
-      }, function(reason){
+    $timeout(function asyncTimeoutHandler() {
+      originalPromise.then(function originalPromiseSuccess(response){
+        deferred.resolve(response);
+      }, function originalPromiseFailure(reason){
         deferred.resolve(reason);
       });
     }, time);
@@ -35,14 +35,25 @@ demoApp.service("Async", ["$q", "$timeout", function($q, $timeout){
   };
 }]);
 
-demoApp.service("PostModel", ["$q", "Restangular", "Status", "Async", "baseURL", function($q, Restangular, Status, Async, baseURL){
+demoApp.service("Authorization", ["$q", "$timeout", function($q, $timeout){
+  this.authorize = function authorize(){
+    var deferred = $q.defer();
+
+    $timeout(function() {
+      deferred.resolve();
+    }, 1500);
+
+    return deferred.promise;
+  };
+}]);
+
+demoApp.service("PostModel", ["$q", "Restangular", "Status", "Async", "Authorization", "baseURL", function($q, Restangular, Status, Async, Authorization, baseURL){
   this.getCollection = function(start, end){
     var url = baseURL + '/posts';
-    var params = [];
-    if (start !== undefined) { params.push('_start=' + start); }
-    if (end !== undefined) { params.push('_end=' + end); }
-    if (params.length) { url += '?' + params.join('&'); }
-    return Restangular.allUrl("base", baseURL).all("posts").getList();
+    var params = {};
+    if (start !== undefined) { params._start = start; }
+    if (end !== undefined) { params._end = end; }
+    return Restangular.allUrl("base", baseURL).all("posts").getList(params);
   };
 
   this.getCollectionDelayed = function(start, end) {
@@ -57,7 +68,9 @@ demoApp.service("PostModel", ["$q", "Restangular", "Status", "Async", "baseURL",
       if (Status.isSuccessful(response.status)){ // successful case - no additional authorization
         deferred.resolve(response.data);
       } else if (Status.needsAuthorization(response.status)) {
-        debugger;
+        Authorization.authorize().then(function(){
+          deferred.resolve(response.data);
+        });
       } else {
         alert("Unhandled status: " + response.status);
       }
@@ -71,10 +84,13 @@ demoApp.service("PostModel", ["$q", "Restangular", "Status", "Async", "baseURL",
 
 demoApp.controller("callCtrl", ["$scope", "$uibModal", "PostModel", function($scope, $uibModal, PostModel) {
   $scope.display = '';
+  $scope.itemPromise = null;
 
   $scope.call = function(id){
-    PostModel.getItem(id).then(function(response){
-      $scope.display = response.plain();
+    this.clear();
+    $scope.itemPromise = PostModel.getItem(id);
+    $scope.itemPromise.then(function(response){
+      $scope.display = JSON.stringify(response, null, 2);
     });
   };
 
@@ -86,7 +102,7 @@ demoApp.controller("callCtrl", ["$scope", "$uibModal", "PostModel", function($sc
 demoApp.controller("demoCtrl", ["$scope", "$uibModal", "PostModel", function($scope, $uibModal, PostModel){
   $scope.postsPromise = PostModel.getCollectionDelayed(0, 9);
   $scope.postsPromise.then(function(response){
-    $scope.posts = response.map((el) => { return el.plain(); });
+    $scope.posts = response.data.map((el) => { return el.plain(); });
   });
 
   $scope.open = function (id) {
