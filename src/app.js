@@ -20,24 +20,9 @@ demoApp.service("Status", function(){
   };
 });
 
-demoApp.service("Async", ["$q", "$timeout", function($q, $timeout){
-  this.delay = function delay(originalPromise, time){
-    var deferred = $q.defer();
-
-    $timeout(function asyncTimeoutHandler() {
-      originalPromise.then(function originalPromiseSuccess(response){
-        deferred.resolve(response);
-      }, function originalPromiseFailure(reason){
-        deferred.resolve(reason);
-      });
-    }, time);
-    return deferred.promise;
-  };
-}]);
-
-demoApp.service("AuthModel", ["$http", "Async", "baseURL", function($http, Async, baseURL){
+demoApp.service("AuthModel", ["$http", "baseURL", function($http, baseURL){
   this.get = function(token){
-    return Async.delay($http.get(baseURL + "/auth/" + token), 1000);
+    return $http.get(baseURL + "/auth/" + token);
   };
 }]);
 
@@ -57,17 +42,12 @@ demoApp.service("Authorization", ["$q", "$timeout", "AuthModel", function($q, $t
   };
 }]);
 
-demoApp.service("PostModel", ["$q", "Restangular", "Status", "Async", "Authorization", "baseURL", function($q, Restangular, Status, Async, Authorization, baseURL){
+demoApp.service("PostModel", ["$q", "Restangular", "Status", "Authorization", "baseURL", function($q, Restangular, Status, Authorization, baseURL){
   this.getCollection = function(start, end){
-    var url = baseURL + '/posts';
     var params = {};
     if (start !== undefined) { params._start = start; }
     if (end !== undefined) { params._end = end; }
     return Restangular.allUrl("base", baseURL).all("posts").getList(params);
-  };
-
-  this.getCollectionDelayed = function(start, end) {
-    return Async.delay(this.getCollection(start, end), 2000);
   };
 
   this.getItem = function(id){
@@ -111,31 +91,35 @@ demoApp.controller("callCtrl", ["$scope", "$uibModal", "PostModel", function($sc
   };
 }]);
 
-demoApp.controller("demoCtrl", ["$scope", "$uibModal", "PostModel", function($scope, $uibModal, PostModel){
-  $scope.postsPromise = PostModel.getCollectionDelayed(0, 9);
+demoApp.controller("postsCtrl", ["$scope", "PostModel", "PostModal", function($scope, PostModel, PostModal){
+  $scope.postsPromise = PostModel.getCollection(0, 9);
   $scope.postsPromise.then(function(response){
     $scope.posts = response.data.map((el) => { return el.plain(); });
   });
 
   $scope.open = function (id) {
-    var modalInstance = $uibModal.open({
+    PostModal.open($scope, id).result.then(function () {
+      console.log("has been resolved", arguments);
+    }, function () {
+      console.log("has been rejected", arguments);
+    });
+  };
+}]);
+
+demoApp.service("PostModal", ["$uibModal", function($uibModal){
+  this.open = function($scope, id){
+    return $uibModal.open({
       animation: true,
       templateUrl: 'myModalContent.html',
       controller: 'ModalInstanceCtrl',
       size: "lg",
       resolve: {
         post: function () {
-          return $scope.posts.find((el) => {return el.id == id;});
+          return $scope.posts.find((el) => {return el.id == id; });
         }
       }
     });
-
-    modalInstance.result.then(function () {
-      console.log("has been resolved", arguments);
-    }, function () {
-      console.log("has been rejected", arguments);
-    });
-  };
+  }
 }]);
 
 demoApp.controller('ModalInstanceCtrl', function ($scope, $uibModalInstance, post) {
