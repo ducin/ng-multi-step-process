@@ -1,0 +1,17 @@
+{
+  "name": "ng-multi-step-process",
+  "description": "Multi-process skeleton for angular apps",
+  "author": "Tomasz Ducin <tomasz.ducin@gmail.com>",
+  "scripts": {
+    "start": "http-server"
+  },
+  "dependencies": {
+    "angular": "^1.5.7",
+    "angular-ui-bootstrap": "^2.0.0",
+    "bootstrap": "^3.3.6",
+    "restangular": "^1.5.2"
+  },
+  "devDependencies": {
+    "http-server": "^0.9.0"
+  }
+}
