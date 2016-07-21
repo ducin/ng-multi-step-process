@@ -4,11 +4,17 @@ var demoApp = angular.module("demoApp", [
   "cgBusy"
 ]);
 
+
+
 demoApp.config(["RestangularProvider", function(RestangularProvider){
   RestangularProvider.setFullResponse(true);
 }]);
 
+
+
 demoApp.constant("baseURL", "https://jsonplaceholder.typicode.com");
+
+
 
 demoApp.service("Status", function(){
   this.isSuccessful = function isSuccessful(status){
@@ -20,13 +26,19 @@ demoApp.service("Status", function(){
   };
 });
 
+
+
 demoApp.service("AuthModel", ["$http", "baseURL", function($http, baseURL){
   this.get = function(token){
     return $http.get(baseURL + "/auth/" + token);
   };
 }]);
 
-demoApp.service("Authorization", ["$q", "$timeout", "AuthModel", function($q, $timeout, AuthModel){
+
+
+demoApp.service("Authorization", ["$q", "$timeout", "AuthModel", "Status", function($q, $timeout, AuthModel, Status){
+  var self = this;
+
   this.authorize = function authorize(token){
     var deferred = $q.defer();
 
@@ -34,45 +46,59 @@ demoApp.service("Authorization", ["$q", "$timeout", "AuthModel", function($q, $t
       AuthModel.get(token).then(function(response){
         deferred.resolve(response);
       }, function(response){
-        debugger;
+        deferred.reject(reason);
       });
     }, 1500);
 
     return deferred.promise;
   };
+
+  this.wrap = function(innerFunction){
+    return function(){
+      var args = Array.prototype.slice.call(arguments);
+      var modelPromise = innerFunction.apply(this, args);
+      var deferred = $q.defer();
+
+      modelPromise.then(function(modelResponse){
+        if (Status.isSuccessful(modelResponse.status)){ // successful case - no additional authorization
+          deferred.resolve(modelResponse.data);
+        } else if (Status.needsAuthorization(modelResponse.status)) {
+          // I expect "X-AUTH-NEEDED" to be here
+          var token = modelResponse.headers("X-AUTH-NEEDED");
+          self.authorize(token).then(function(authorizationResponse){
+            deferred.resolve(authorizationResponse.data);
+          });
+        } else {
+          alert("Unhandled status: " + response.status);
+        }
+      }, function(reason){
+        deferred.reject(reason);
+      });
+
+      return deferred.promise;
+    };
+  };
 }]);
 
-demoApp.service("PostModel", ["$q", "Restangular", "Status", "Authorization", "baseURL", function($q, Restangular, Status, Authorization, baseURL){
-  this.getCollection = function(start, end){
+
+
+demoApp.service("PostModel", ["Restangular", "Authorization", "baseURL", function(Restangular, Authorization, baseURL){
+  // all public methods of models return promise objects !!!
+  //========================================================
+
+  this.getCollection = Authorization.wrap(function(start, end){
     var params = {};
     if (start !== undefined) { params._start = start; }
     if (end !== undefined) { params._end = end; }
     return Restangular.allUrl("base", baseURL).all("posts").getList(params);
-  };
+  });
 
-  this.getItem = function(id){
-    var itemPromise = Restangular.allUrl("base", baseURL).one('posts', id).get();
-    var deferred = $q.defer();
-
-    itemPromise.then(function(itemResponse){
-      if (Status.isSuccessful(itemResponse.status)){ // successful case - no additional authorization
-        deferred.resolve(itemResponse.data);
-      } else if (Status.needsAuthorization(itemResponse.status)) {
-        // I expect "X-AUTH-NEEDED" to be here
-        var token = itemResponse.headers("X-AUTH-NEEDED");
-        Authorization.authorize(token).then(function(authorizationResponse){
-          deferred.resolve(authorizationResponse.data);
-        });
-      } else {
-        alert("Unhandled status: " + response.status);
-      }
-    }, function(reason){
-      deferred.reject(reason);
-    });
-
-    return deferred.promise;
-  };
+  this.getItem = Authorization.wrap(function(id){
+    return Restangular.allUrl("base", baseURL).one('posts', id).get();
+  });
 }]);
+
+
 
 demoApp.controller("callCtrl", ["$scope", "$uibModal", "PostModel", function($scope, $uibModal, PostModel) {
   $scope.display = '';
@@ -91,10 +117,12 @@ demoApp.controller("callCtrl", ["$scope", "$uibModal", "PostModel", function($sc
   };
 }]);
 
+
+
 demoApp.controller("postsCtrl", ["$scope", "PostModel", "PostModal", function($scope, PostModel, PostModal){
   $scope.postsPromise = PostModel.getCollection(0, 9);
   $scope.postsPromise.then(function(response){
-    $scope.posts = response.data.map((el) => { return el.plain(); });
+    $scope.posts = response.map((el) => { return el.plain(); });
   });
 
   $scope.open = function (id) {
@@ -105,6 +133,8 @@ demoApp.controller("postsCtrl", ["$scope", "PostModel", "PostModal", function($s
     });
   };
 }]);
+
+
 
 demoApp.service("PostModal", ["$uibModal", function($uibModal){
   this.open = function($scope, id){
@@ -121,6 +151,8 @@ demoApp.service("PostModal", ["$uibModal", function($uibModal){
     });
   }
 }]);
+
+
 
 demoApp.controller('ModalInstanceCtrl', function ($scope, $uibModalInstance, post) {
   $scope.post = post;
