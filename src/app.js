@@ -4,7 +4,7 @@ var demoApp = angular.module("demoApp", [
   "cgBusy"
 ]);
 
-demoApp.service("PostModel", ["Restangular", function(Restangular){
+demoApp.service("PostModel", ["$q", "Restangular", function($q, Restangular){
   this.fetch = function(start, end){
     var url = 'https://jsonplaceholder.typicode.com/posts';
     var params = [];
@@ -12,11 +12,27 @@ demoApp.service("PostModel", ["Restangular", function(Restangular){
     if (end !== undefined) { params.push('_end=' + end); }
     if (params.length) { url += '?' + params.join('&'); }
     return Restangular.allUrl('posts', url).getList();
+  };
+
+  this.fetchDelayed = function(start, end) {
+    var fetchPromise = this.fetch(start, end);
+    var deferred = $q.defer();
+
+    setTimeout(function() {
+      fetchPromise.then(function(data){
+        deferred.resolve(data);
+      }, function(reason){
+        deferred.resolve(reason);
+      });
+    }, 2500);
+
+    return deferred.promise;
   }
+
 }]);
 
 demoApp.controller("demoCtrl", ["$scope", "$uibModal", "PostModel", function($scope, $uibModal, PostModel){
-  $scope.postsPromise = PostModel.fetch(0, 9);
+  $scope.postsPromise = PostModel.fetchDelayed(0, 9);
   $scope.postsPromise.then(function(response){
     $scope.posts = response.map((el) => { return el.plain(); });
   });
