@@ -50,6 +50,17 @@
     </div>
 </nav>
 
+<div class="container" ng-controller="callCtrl">
+    <p>
+        <a class="btn btn-default" href="#" role="button" ng-click="clear()">Clear &raquo;</a>
+        <a class="btn btn-default" href="#" role="button" ng-click="call(1)">Call standard &raquo;</a>
+        <a class="btn btn-default" href="#" role="button" ng-click="call(2)">Call alternative &raquo;</a>
+    </p>
+    <p>
+        <div>{{display}}</div>
+    </p>
+</div>
+
 <div class="container ng-cloak" ng-controller="demoCtrl" cg-busy="postsPromise">
     <!-- Example row of columns -->
     <div class="row">
