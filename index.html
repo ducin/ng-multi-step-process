@@ -13,7 +13,9 @@
         }
     </style>
     <link rel="stylesheet" href="vendor/css/bootstrap-theme.css">
+    <link rel="stylesheet" href="vendor/css/angular-busy.css">
     <script src="vendor/js/angular.js"></script>
+    <script src="vendor/js/angular-busy.js"></script>
     <script src="vendor/js/lodash.js"></script>
     <script src="vendor/js/restangular.js"></script>
     <script src="vendor/js/ui-bootstrap.js"></script>
@@ -48,13 +50,13 @@
     </div>
 </nav>
 
-<div class="container" ng-controller="demoCtrl">
+<div class="container" ng-controller="demoCtrl" cg-busy="postsPromise">
     <!-- Example row of columns -->
     <div class="row">
         <div class="col-md-4" ng-repeat="post in posts">
             <h2>{{post.title}}</h2>
             <p>{{post.body}}</p>
-            <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+            <p><a class="btn btn-default" href="#" role="button" ng-click="open(post.id)">View details &raquo;</a></p>
         </div>
     </div>
 
@@ -64,5 +66,23 @@
         <p>&copy; Company 2015</p>
     </footer>
 </div>
+
+
+
+<script type="text/ng-template" id="myModalContent.html">
+    <div class="modal-header">
+        <h3 class="modal-title">{{post.title}}</h3>
+    </div>
+    <div class="modal-body">
+        <p>{{post.body}}</p>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-primary" type="button" ng-click="ok()">OK</button>
+        <button class="btn btn-warning" type="button" ng-click="cancel()">Cancel</button>
+    </div>
+</script>
+
+
+
 </body>
 </html>
